@@ -1,7 +1,7 @@
 
 # MK
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ManuelKugelmann/stylegan3-fun/main/colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ManuelKugelmann/stylegan3-fun/blob/main/colab.ipynb)
 
 # StyleGAN3-Fun<br><sub>Let's have fun with StyleGAN2/ADA/3!</sub>
 
