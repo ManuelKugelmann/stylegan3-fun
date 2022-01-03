@@ -1,3 +1,9 @@
+
+# MK
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]
+(https://colab.research.google.com/github/ManuelKugelmann/stylegan3-fun/blob/master/colab.ipynb)
+
 # StyleGAN3-Fun<br><sub>Let's have fun with StyleGAN2/ADA/3!</sub>
 
 SOTA GANs are hard to train and to explore, and StyleGAN2/ADA/3 are no different. The point of this repository is to allow
