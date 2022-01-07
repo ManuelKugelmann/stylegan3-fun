@@ -5,7 +5,7 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ManuelKugelmann/stylegan3-fun/blob/main/colab.ipynb)
 
 # StyleGAN3-Fun<br><sub>Let's have fun with StyleGAN2/ADA/3!</sub>
-
+### PDillis/main
 SOTA GANs are hard to train and to explore, and StyleGAN2/ADA/3 are no different. The point of this repository is to allow
 the user to both easily train and explore the trained models without unnecessary headaches. 
 
@@ -96,7 +96,7 @@ This repository adds the following (not yet the complete list):
 
 
 
-### (vsemecky/dd)
+### vsemecky/dd
 - tied to python 3.7 syntax
 - .jpgs instead of .pngs for training
 - easy restart settings (set initial augment strength using `--initstrength`)
