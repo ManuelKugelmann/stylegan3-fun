@@ -1,4 +1,5 @@
 
+
 # MK
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ManuelKugelmann/stylegan3-fun/blob/main/colab.ipynb)
@@ -93,6 +94,18 @@ This repository adds the following (not yet the complete list):
 
 ---
 
+
+
+### (vsemecky/dd)
+- tied to python 3.7 syntax
+- .jpgs instead of .pngs for training
+- easy restart settings (set initial augment strength using `--initstrength`)
+- option to mirror dataset vertically (`--mirrory`)
+- brought back option to disable color augmentations (`--augpipe=bg`)
+- resume from the latest pkl file in the outdir (`--resume=latest`)
+- [Dynamic Dataset](dynamic_dataset/README.md) - alternative dataset loader that uses raw images and crops/resize them on the fly (`--dd`). You don't need to use `dataset_tool.py` before training.
+
+---
 ## Alias-Free Generative Adversarial Networks (StyleGAN3)<br><sub>Official PyTorch implementation of the NeurIPS 2021 paper</sub>
 
 ![Teaser image](./docs/stylegan3-teaser-1920x1006.png)

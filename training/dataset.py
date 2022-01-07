@@ -56,7 +56,7 @@ class Dataset(torch.utils.data.Dataset):
         if yflip:
             self._raw_idx = np.tile(self._raw_idx, 2)
             self._yflip = np.concatenate([self._yflip, np.ones_like(self._yflip)])
-            # We then need double the amount of indices for xflip:
+            # Double the amount of indices for xflip to prevent out of bounds
             self._xflip = np.tile(self._xflip, 2)
 
     def _get_raw_labels(self):

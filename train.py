@@ -10,6 +10,7 @@
 "Alias-Free Generative Adversarial Networks"."""
 
 import os
+import glob
 import click
 import re
 import json
@@ -100,13 +101,35 @@ def launch_training(c, desc, outdir, dry_run):
 # ----------------------------------------------------------------------------
 
 
-def init_dataset_kwargs(data):
+def init_dataset_kwargs(opts):
     try:
-        dataset_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False, yflip=False)
-        dataset_obj = dnnlib.util.construct_class_by_name(**dataset_kwargs) # Subclass of training.dataset.Dataset.
-        dataset_kwargs.resolution = dataset_obj.resolution # Be explicit about resolution.
-        dataset_kwargs.use_labels = dataset_obj.has_labels # Be explicit about labels.
-        dataset_kwargs.max_size = len(dataset_obj) # Be explicit about dataset size.
+
+        if opts.dd:
+            # Use Dynamic Dataset
+            dataset_kwargs = dnnlib.EasyDict(
+                class_name='dynamic_dataset.dynamic_dataset.DynamicDataset',
+                path=opts.data,
+                use_labels=opts.cond,
+                xflip=opts.mirror,
+                yflip=opts.mirrory,
+                resolution=opts.dd_res,
+                extend=opts.dd_extend,
+                anamorphic=opts.dd_anamorphic,
+                crop=opts.dd_crop,
+                scale=opts.dd_scale,
+                autocontrast_probability=opts.dd_ac_prob,
+                autocontrast_max_cutoff=opts.dd_ac_cutoff,
+            )
+            dataset_obj = dnnlib.util.construct_class_by_name(**dataset_kwargs)
+            dataset_kwargs.max_size = len(dataset_obj)
+        else:
+            # Use original ImageFolderDataset
+            dataset_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=opts.data, use_labels=True, max_size=None, xflip=False, yflip=False)
+            dataset_obj = dnnlib.util.construct_class_by_name(**dataset_kwargs)  # Subclass of training.dataset.Dataset.
+            dataset_kwargs.resolution = dataset_obj.resolution  # Be explicit about resolution.
+            dataset_kwargs.use_labels = dataset_obj.has_labels  # Be explicit about labels.
+            dataset_kwargs.max_size = len(dataset_obj)  # Be explicit about dataset size.
+
         return dataset_kwargs, dataset_obj.name
     except IOError as err:
         raise click.ClickException(f'--data: {err}')
@@ -125,8 +148,19 @@ def parse_comma_separated_list(s):
 
 # ----------------------------------------------------------------------------
 
+# Finds the latest pkl file in the `outdir`, including its kimg number.
+# Reimplementation of https://github.com/skyflynil/stylegan2/commit/8c57ee4633d334e480a23d7f82433c7649d50866
+def locate_latest_pkl(outdir: str):
+    allpickles = sorted(glob.glob(os.path.join(outdir, '0*', 'network-*.pkl')))
+    latest_pkl = allpickles[-1]
+    RE_KIMG = re.compile('network-snapshot-(\d+).pkl')
+    latest_kimg = int(RE_KIMG.match(os.path.basename(latest_pkl)).group(1))
+    return latest_pkl, latest_kimg
 
-@click.command()
+#----------------------------------------------------------------------------
+
+@click.command(context_settings=dict(max_content_width=9999))
+
 # Required.
 @click.option('--cfg',          help='Base configuration',                                      type=click.Choice(['stylegan3-t', 'stylegan3-r', 'stylegan2']), required=True)
 @click.option('--data',         help='Training data', metavar='[ZIP|DIR]',                      type=click.Path(exists=True, dir_okay=False), required=True)
@@ -138,8 +172,10 @@ def parse_comma_separated_list(s):
 @click.option('--mirror-y',     help='Enable dataset y-flips', metavar='BOOL',                  type=bool, default=False, show_default=True)
 @click.option('--aug',          help='Augmentation mode',                                       type=click.Choice(['noaug', 'ada', 'fixed']), default='ada', show_default=True)
 @click.option('--augpipe',      help='Augmentation pipeline [default: bgc]',                    type=click.Choice(['blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc', 'bgcf', 'bgcfn', 'bgcfnc']))
-@click.option('--resume',       help='Resume from given network pickle', metavar='[PATH|URL]',  type=str)
+@click.option('--resume',       help='Resume from given network pickle (PATH, URL or "latest")', metavar='[PATH|URL|latest]',  type=str)
 @click.option('--freezed',      help='Freeze first layers of D', metavar='INT',                 type=click.IntRange(min=0), default=0, show_default=True)
+@click.option('--initstrength', help='Override ADA strength at start',                          type=click.FloatRange(min=0))
+
 # Misc hyperparameters.
 @click.option('--gamma',        help='R1 regularization weight', metavar='FLOAT',               type=click.FloatRange(min=0), default=None)
 @click.option('--p',            help='Probability for --aug=fixed', metavar='FLOAT',            type=click.FloatRange(min=0, max=1), default=0.2, show_default=True)
@@ -151,6 +187,17 @@ def parse_comma_separated_list(s):
 @click.option('--dlr',          help='D learning rate', metavar='FLOAT',                        type=click.FloatRange(min=0), default=0.002, show_default=True)
 @click.option('--map-depth',    help='Mapping network depth  [default: varies]', metavar='INT', type=click.IntRange(min=1))
 @click.option('--mbstd-group',  help='Minibatch std group size', metavar='INT',                 type=click.IntRange(min=1), default=4, show_default=True)
+
+# Dynamic Dataset options
+@click.option('--dd',           help='Tells Stylegan to use DynamicDataset instead of the original ImageFolderDataset', is_flag=True)
+@click.option('--dd-res',       help='The desired images resolution (e.g. --dd-res=1024x1024)', type=str, default="1024x1024", show_default=True)
+@click.option('--dd-crop',      help='Cropping type',                                           type=click.Choice(['center', 'random']), default="center", show_default=True)
+@click.option('--dd-scale',     help='Scale/zoom factor. 1 = no zoom, 0.8 = crop up to 20%',    type=click.FloatRange(min=0.5, max=1), default=0.8, show_default=True)
+@click.option("--dd-ac-prob",   help="Autocontrast probability (default: %(default)s)",         type=click.FloatRange(min=0, max=1), default=0.8, show_default=True)
+@click.option("--dd-ac-cutoff", help="Max. percent to cut off from the histogram (default: %(default)s)", type=float, default=2, show_default=True)
+@click.option('--dd-extend',    help='EXPERIMENTAL: Extend background to another resolution (e.g. --dd-extend=1024x1024)', type=str)
+@click.option('--dd-anamorphic',help='EXPERIMENTAL: Allows to train Extend background to another resolution (e.g. --dd-anamorphic=1280x720 --dd-res=1024x1024)', type=str)
+
 # Misc settings.
 @click.option('--outdir',       help='Where to save the results', metavar='DIR',                type=click.Path(file_okay=False), default=os.path.join(os.getcwd(), 'training-runs'))
 @click.option('--desc',         help='String to include in result dir name', metavar='STR',     type=str)
@@ -200,7 +247,8 @@ def main(**kwargs):
     c.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, prefetch_factor=2)
 
     # Training set.
-    c.training_set_kwargs, dataset_name = init_dataset_kwargs(data=opts.data)
+    c.training_set_kwargs, dataset_name = init_dataset_kwargs(opts=opts)
+
     if opts.cond and not c.training_set_kwargs.use_labels:
         raise click.ClickException('--cond=True requires labels specified in dataset.json')
     c.training_set_kwargs.use_labels = opts.cond
@@ -281,22 +329,30 @@ def main(**kwargs):
 
     if opts.aug != 'noaug':
         c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', **augpipe_specs[opts.augpipe])
+
         if opts.aug == 'ada':
             c.ada_target = opts.target
         if opts.aug == 'fixed':
             c.augment_p = opts.p
 
-    # Resume.
+    # Initial Augmentation Strength.
+    if opts.initstrength is not None:
+        assert isinstance(opts.initstrength, float)
+        c.augment_p = opts.initstrength
 
+    # Resume.
     if opts.resume is None:
         resume_desc = 'no_resume'
     else:
         if opts.resume in gen_utils.resume_specs[opts.cfg]:
             c.resume_pkl = gen_utils.resume_specs[opts.cfg][opts.resume]
             resume_desc = f'resume_{opts.resume}'
+        if opts.resume == "latest":
+            c.resume_pkl, c.resume_kimg = locate_latest_pkl(opts.outdir)
         else:  # A local file
             c.resume_pkl = opts.resume
             resume_desc = f'resume_custom'
+
         c.ada_kimg = 100 # Make ADA react faster at the beginning.
         c.ema_rampup = None # Disable EMA rampup.
         c.loss_kwargs.blur_init_sigma = 0 # Disable blur rampup.
